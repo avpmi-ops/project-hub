@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVPMi Unified Project Hub</title>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<style>
+  :root {
+    --primary: #1a365d;
+    --primary-light: #2a4a7f;
+    --accent: #e07c24;
+    --accent-light: #f4a261;
+    --success: #2d8659;
+    --warning: #d4a017;
+    --danger: #c0392b;
+    --info: #2980b9;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #1a202c;
+    --text-muted: #718096;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+    --radius: 8px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ===== TOP NAV ===== */
+  .top-nav { background: var(--primary); color: #fff; padding: 0 24px; display: flex; align-items: center; height: 56px; position: sticky; top:0; z-index: 100; }
+  .top-nav .logo { font-weight: 700; font-size: 18px; letter-spacing: 0.5px; }
+  .top-nav .logo span { color: var(--accent); }
+  .top-nav .nav-links { margin-left: auto; display: flex; gap: 6px; }
+  .top-nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; transition: all 0.15s; display:flex; align-items:center; gap:6px; }
+  .top-nav .nav-links a:hover { background: rgba(255,255,255,0.12); color:#fff; }
+  .top-nav .nav-links a.active { background: rgba(255,255,255,0.15); color:#fff; }
+
+  /* ===== LAYOUT ===== */
+  .page-header { padding: 20px 24px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  .page-header h1 { font-size: 22px; font-weight: 700; }
+  .page-header .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; }
+  .btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; display:flex; align-items:center; gap:6px; }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color:#fff; border-color: var(--primary); }
+  .btn-primary:hover { background: var(--primary-light); }
+
+  .dashboard { padding: 16px 24px 40px; }
+
+  /* ===== TAB BAR ===== */
+  .tab-bar { display: flex; gap: 2px; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+  .tab-bar button { padding: 10px 18px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+  .tab-bar button:hover { color: var(--text); }
+  .tab-bar button.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  /* ===== KPI CARDS ===== */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .kpi-card { background: var(--card); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); border-left: 4px solid var(--primary); }
+  .kpi-card.warn { border-left-color: var(--warning); }
+  .kpi-card.danger { border-left-color: var(--danger); }
+  .kpi-card.success { border-left-color: var(--success); }
+  .kpi-card.accent { border-left-color: var(--accent); }
+  .kpi-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .kpi-card .value { font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .kpi-card .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ===== FILTER BAR ===== */
+  .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items:center; }
+  .filter-bar select, .filter-bar input { padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--card); color: var(--text); min-width: 140px; }
+  .filter-bar input[type="search"] { min-width: 220px; }
+  .filter-count { font-size: 12px; color: var(--text-muted); margin-left: auto; font-weight: 500; }
+
+  /* ===== PANELS ===== */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 1100px) { .panels { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden; }
+  .panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items:center; justify-content:space-between; }
+  .panel-header h3 { font-size: 14px; font-weight: 700; }
+  .panel-body { padding: 16px 18px; }
+
+  /* ===== PIPELINE ===== */
+  .pipeline { display:flex; gap:0; overflow-x:auto; padding-bottom:8px; }
+  .pipeline-stage { flex:1; min-width:90px; text-align:center; position:relative; }
+  .pipeline-stage .stage-bar { height:36px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; color:#fff; position:relative; }
+  .pipeline-stage:first-child .stage-bar { border-radius: 6px 0 0 6px; }
+  .pipeline-stage:last-child .stage-bar { border-radius: 0 6px 6px 0; }
+  .pipeline-stage .stage-label { font-size:10px; font-weight:600; color:var(--text-muted); margin-top:6px; line-height:1.2; padding:0 4px; }
+
+  /* ===== TABLE ===== */
+  .table-wrap { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: var(--primary); color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; cursor: pointer; user-select:none; position: sticky; top:0; }
+  thead th:hover { background: var(--primary-light); }
+  thead th .sort-arrow { margin-left:4px; opacity:0.5; }
+  thead th.sorted .sort-arrow { opacity:1; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: #f7fafc; }
+  tbody td { padding: 10px 14px; white-space: nowrap; }
+  tbody td.wrap { white-space: normal; max-width: 200px; }
+
+  /* ===== BADGES ===== */
+  .badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+  .badge-stage { background:#e8f0fe; color:#1a56db; }
+  .badge-size-XL { background:#fde8e8; color:#c0392b; }
+  .badge-size-L { background:#fef3c7; color:#92400e; }
+  .badge-size-M { background:#e8f5e9; color:#2d8659; }
+  .badge-size-S { background:#f0f2f5; color:#718096; }
+  .badge-type { background:#f3e8ff; color:#7c3aed; }
+  .badge-warn { background:#fef3c7; color:#92400e; }
+  .badge-danger { background:#fde8e8; color:#c0392b; }
+  .badge-success { background:#d1fae5; color:#065f46; }
+
+  /* ===== AGING DOTS ===== */
+  .aging-bar { display:flex; gap:2px; align-items:center; }
+  .aging-dot { width:8px; height:8px; border-radius:50%; }
+
+  /* ===== CHARTS (CSS-only bar charts) ===== */
+  .bar-chart { display:flex; flex-direction:column; gap:8px; }
+  .bar-row { display:flex; align-items:center; gap:10px; }
+  .bar-label { font-size:12px; font-weight:500; min-width:120px; text-align:right; color:var(--text); }
+  .bar-track { flex:1; height:24px; background:#f0f2f5; border-radius:4px; overflow:hidden; position:relative; }
+  .bar-fill { height:100%; border-radius:4px; transition: width 0.5s ease; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:11px; font-weight:600; color:#fff; min-width:fit-content; }
+  .bar-value { font-size:12px; font-weight:600; min-width:60px; text-align:right; }
+
+  /* ===== HEALTH INDICATORS ===== */
+  .health-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:10px; max-height:320px; overflow-y:auto; }
+  .health-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; background:#fafbfc; border:1px solid var(--border); }
+  .health-item .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .health-item .name { font-size:12px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .health-item .days { font-size:12px; font-weight:700; white-space:nowrap; }
+
+  /* ===== DONUT CHART (SVG) ===== */
+  .donut-container { display:flex; align-items:center; gap:20px; }
+  .donut-legend { display:flex; flex-direction:column; gap:6px; }
+  .donut-legend-item { display:flex; align-items:center; gap:8px; font-size:12px; }
+  .donut-legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+  /* ===== ALERTS ===== */
+  .alerts-list { display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; }
+  .alert-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; font-size:12px; }
+  .alert-item.alert-warn { background:#fef3c7; color:#92400e; }
+  .alert-item.alert-danger { background:#fde8e8; color:#c0392b; }
+  .alert-item .alert-icon { font-size:16px; }
+
+  /* ===== TAB CONTENT ===== */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ===== LOADING SPINNER ===== */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== STATUS MESSAGE ===== */
+  .status-message { padding: 12px 16px; background: #fef3c7; color: #92400e; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+  .status-message.error { background: #fde8e8; color: #c0392b; }
+  .status-message.success { background: #d1fae5; color: #065f46; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .top-nav .nav-links a span { display:none; }
+    .page-header { padding: 16px; }
+    .dashboard { padding: 12px 16px; }
+  }
+
+  /* ===== LINKS ===== */
+  a.ext-link { color: var(--info); text-decoration:none; font-size:12px; }
+  a.ext-link:hover { text-decoration:underline; }
+
+  /* ===== TOOLTIP ===== */
+  .has-tooltip { position:relative; cursor:help; }
+  .has-tooltip:hover::after { content:attr(data-tip); position:absolute; bottom:100%; left:50%; transform:translateX(-50%); background:var(--text); color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; white-space:nowrap; z-index:10; }
+
+  /* ===== BILLING PROGRESS ===== */
+  .billing-pips { display:flex; gap:3px; }
+  .billing-pip { width:20px; height:8px; border-radius:2px; background:#e2e8f0; }
+  .billing-pip.done { background:var(--success); }
+  .billing-pip.pending { background:var(--warning); }
+</style>
+</head>
+<body>
+
+<!-- TOP NAVIGATION -->
+<nav class="top-nav">
+  <div class="logo">AVPM<span>i</span> &nbsp;Project Hub</div>
+  <div class="nav-links">
+    <a href="#" class="active" title="Dashboard">Dashboard</a>
+    <a href="https://avpm-my.sharepoint.com/personal/robert_edgar_avpmi_com/Lists/AVPMi%20Project%20Intake/AllItems.aspx" target="_blank">Intake List</a>
+    <a href="https://avpmi-ops.github.io/closed-projects-dashboard/" target="_blank">Closed (GitHub)</a>
+    <a href="#" style="opacity:0.5;">PowerApps</a>
+    <a href="#" style="opacity:0.5;">Reports</a>
+  </div>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div>
+    <h1>Unified Project Hub</h1>
+    <div class="subtitle">AVPMi Portfolio &bull; Last refreshed: <span id="refresh-date">Loading static data...</span></div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" id="connect-btn" onclick="connectLiveData()" style="background: var(--accent); color: #fff; border-color: var(--accent);">
+      <span id="connect-icon">🔗</span> Connect Live Data
+    </button>
+    <button class="btn" onclick="exportCSV()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </button>
+  </div>
+</div>
+
+<div class="dashboard">
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="active" onclick="switchTab('overview',this)">Overview</button>
+    <button onclick="switchTab('projects',this)">All Projects</button>
+    <button onclick="switchTab('financial',this)">Financial</button>
+    <button onclick="switchTab('team',this)">Team Workload</button>
+    <button onclick="switchTab('closed',this)">Closed Projects</button>
+  </div>
+
+  <!-- ==================== OVERVIEW TAB ==================== -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="kpi-row" id="kpi-row"></div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header"><h3>Project Pipeline by Stage</h3></div>
+        <div class="panel-body" id="pipeline-chart"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Attention Required</h3></div>
+        <div class="panel-body" id="alerts-panel"></div>
+      </div>
+    </div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header"><h3>Days in Current Stage (Aging)</h3></div>
+        <div class="panel-body" id="aging-panel"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Revenue by Project Type</h3></div>
+        <div class="panel-body" id="type-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ALL PROJECTS TAB ==================== -->
+  <div id="tab-projects" class="tab-content">
+    <div class="filter-bar">
+      <input type="search" id="search-projects" placeholder="Search by title, PM, client..." onkeyup="filterProjects()">
+      <select id="filter-stage" onchange="filterProjects()">
+        <option value="">All Stages</option>
+      </select>
+      <select id="filter-type" onchange="filterProjects()">
+        <option value="">All Types</option>
+      </select>
+      <select id="filter-pm" onchange="filterProjects()">
+        <option value="">All PMs</option>
+      </select>
+      <select id="filter-sales" onchange="filterProjects()">
+        <option value="">All Sales Reps</option>
+      </select>
+      <span class="filter-count" id="filter-count"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="projects-table">
+        <thead id="projects-thead">
+          <tr>
+            <th onclick="sortTable('projects-table','Title')">Project <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Project_Number')">Number <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Project_Type')">Type <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Stage')">Stage <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Size')">Size <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Assigned_PM')">PM <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Sales_Rep')">Sales Rep <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Contract_Value')">Value <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','Client_Operator')">Client <span class="sort-arrow">▼</span></th>
+            <th onclick="sortTable('projects-table','State')">State <span class="sort-arrow">▼</span></th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="projects-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== FINANCIAL TAB ==================== -->
+  <div id="tab-financial" class="tab-content">
+    <div class="kpi-row" id="financial-kpi-row"></div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header"><h3>Revenue by Project Type</h3></div>
+        <div class="panel-body" id="financial-type-chart"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Revenue by Stage</h3></div>
+        <div class="panel-body" id="financial-stage-chart"></div>
+      </div>
+    </div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header"><h3>Payment Model Distribution</h3></div>
+        <div class="panel-body" id="payment-model-chart"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Billing Tracker</h3></div>
+        <div class="panel-body" id="billing-tracker"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TEAM WORKLOAD TAB ==================== -->
+  <div id="tab-team" class="tab-content">
+    <div class="kpi-row" id="team-kpi-row"></div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header"><h3>Projects by PM</h3></div>
+        <div class="panel-body" id="pm-chart"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Revenue by PM</h3></div>
+        <div class="panel-body" id="pm-value-chart"></div>
+      </div>
+    </div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-header"><h3>Projects by Sales Rep</h3></div>
+        <div class="panel-body" id="sales-chart"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Revenue by Sales Rep</h3></div>
+        <div class="panel-body" id="sales-value-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CLOSED PROJECTS TAB ==================== -->
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+ ��M���̵х������Aɽ����}Q�������Q����������������ͽ�е��ɽ܈��Z��������Ѡ�(�������������Ѡ���������ͽ��Q�������ɽ����̵х������Mх������Mх���������������ͽ�е��ɽ܈��Z��������Ѡ�(�������������Ѡ���������ͽ��Q�������ɽ����̵х������M�锜���M�销������������ͽ�е��ɽ܈��Z��������Ѡ�(�������������Ѡ���������ͽ��Q�������ɽ����̵х�������ͥ����}A4����A4�������������ͽ�е��ɽ܈��Z��������Ѡ�(�������������Ѡ���������ͽ��Q�������ɽ����̵х������M����}I������M���́I���������������ͽ�е��ɽ܈��Z��������Ѡ�(�tation", "Size": "XL", "Contract_Value": 818443.38, "Assigned_PM": "Alger Salazar", "Legal_Billing_Name": "Concord Parking Ltd", "Sales_Rep": "Ken Shin", "Location_Name": "Oakridge Centre Parking", "Street_Address": "6551 No. 3 Rd", "City": "Richmond", "State": "BC", "Country": "Canada", "QB_Proposal_Number": "1617108", "Contract_Signed_Date": "2026-02-08", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Deposit_Received_Date": "2025-10-02", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Aa3344ba...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Payments; Damage Control; Access Control; X-Large; Development; AVPMi Valet", "Billing_Notes": "50% deposit received 10/3/25; no final or live date visible in recent posts", "Notes": "Two matching PandaDocs found (P5312/P5313); used first matching Oakridge proposal.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake", "PandaDoc_Number": "P-4790"}, {"Title": "Hilton Columbus Easton", "Project_Number": "P5099", "Project_Type": "Self-Parking", "Stage": "Fulfillment", "Size": "XL", "Contract_Value": 298794.57, "Assigned_PM": "Alger Salazar", "Legal_Billing_Name": "HHM Hotels", "Sales_Rep": "Ken Shin", "Location_Name": "Hilton Columbus Easton", "Street_Address": "3900 Chagrin Dr", "City": "Columbus", "State": "OH", "ZIP": "43219", "QB_Proposal_Number": "1617099B", "Contract_Signed_Date": "2025-12-02", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3A0798dc1...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "PMS; Payments; Access Control; X-Large; Self-Parking", "Billing_Notes": "No billing milestone data visible in Posts (virtual scroll limit)", "Notes": "Exact PandaDoc name match.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake", "PandaDoc_Number": "P-5099"}, {"Title": "Hilton Universal City", "Project_Number": "P5251", "Project_Type": "Self-Parking", "Stage": "Go Live", "Size": "XL", "Contract_Value": 282308.95, "Assigned_PM": "Alger Salazar", "Legal_Billing_Name": "HHM Hotels", "Client_Operator": "Hilton Los Angeles / Universal City", "Sales_Rep": "Ken Shin", "Location_Name": "Valet & Self-Park Solution", "City": "Los Angeles", "State": "CA", "PandaDoc_Number": "P-5251", "QB_Proposal_Number": "1617131", "Contract_Signed_Date": "2025-09-15", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Deposit_Received_Date": "2026-11-27", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Ae142a31...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "PMS; Payments; Damage Control; Access Control; X-Large; Hilton; Self-Parking; FreedomPay; AVPMi Valet", "SKU_Summary": "POS Pro [PKG 1] | Master Station Intercom [IN0422] | Stick PC with Customer Queue [IN0167] | ACU Complete [PKG 984] | Survision LPR [PKG 995] | INCLUDES: [IN0700] | IN0701 - MICROPAK 3 POWER CABLE [IN0702] | LPR Pole 8ft [IN0336]", "Billing_Notes": "50% deposit received 11/28 (partial date - month/day only, year not visible in post)", "Notes": "Used main contract matching project amount; excluded later add-ons (P5460/P5480).", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ The Boca Raton Employee & Member Experience Enhancements", "Project_Number": "P5300", "Project_Type": "Access Control", "Stage": "Commissioning", "Size": "XL", "Contract_Value": 263763.78, "Assigned_PM": "Alger Salazar", "Legal_Billing_Name": "The Boca Raton", "Sales_Rep": "Luigi Lissa", "Location_Name": "SCOPE OF WORK", "City": "Boca Raton", "State": "FL", "PandaDoc_Number": "P-5300", "QB_Proposal_Number": "1617018B", "Contract_Signed_Date": "2025-10-09", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3A407a05c...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Completed", "Labels": "Self-Parking; Project Status", "SKU_Summary": "Einar LPR MMR Short Range(Inbound) [IN0720] | Motion Detector-Activated 21000 [SPC] | LPR Pole 6ft [IN0338] | Cache Relay iTach w/POE [IN0285] | ACT Terminal & Stanchion Package [PKG 992] | Einar LPR MMR Short Range(Inbound) [IN0720] | Motion Detector-Activated 21000 [SPC] | LPR Pole 6ft [IN0338]", "Billing_Notes": "No billing milestone data visible in Posts (virtual scroll limit)", "Notes": "Matches project amount; earlier base proposal P5057 also exists.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Stanford University Block E", "Project_Number": "P5086", "Project_Type": "Self-Parking", "Stage": "Commissioning", "Size": "L", "Contract_Value": 194840.78, "Assigned_PM": "Alger Salazar", "Legal_Billing_Name": "Ensight Technologies", "Client_Operator": "Ensight Technologies", "Sales_Rep": "Ken Shin", "Location_Name": "SHC Block E Parking Hardware", "City": "Redwood City", "State": "CA", "PandaDoc_Number": "P-5086", "QB_Proposal_Number": "1617097", "Contract_Signed_Date": "2025-08-27", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3A6e20348...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Self-Parking; Project Status", "SKU_Summary": "AVPM Entry Station [PKG 945] | 2N VoIP intercom station [IN0312] | Pinhole Axis Camera [IN0251] | AVPM Credit Card EMV Exit Station [PKG 921] | 2N VoIP intercom station [IN0312] | Pinhole Axis Camera [IN0251] | Ingenico SELF4000 [IN0698] | HID Long Range Reader with Mount [PKG 000]", "Billing_Notes": "No billing milestone data visible in Posts (virtual scroll limit)", "Notes": "Exact amount match in PandaDoc export.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Marriott Westin Copley Boston", "Project_Number": "NEEDS ASSIGNMENT", "Project_Type": "AVPMi Valet", "Stage": "Go Live", "Size": "L", "Contract_Value": 183137.9, "Assigned_PM": "Alger Salazar", "Legal_Billing_Name": "Marriott International", "Client_Operator": "Westin Copley Place Boston", "Sales_Rep": "Ken Shin", "Location_Name": "Westin Copley Place Boston", "Street_Address": "10 Huntington Ave", "City": "Boston", "State": "MA", "ZIP": "2116", "QB_Proposal_Number": "1617021B", "Contract_Signed_Date": "2025-10-19", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3A1a6be79...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Access Control; Large; Marriott; SSO; AVPMi Valet", "SKU_Summary": "Valet Parking System - intercoms, ACU, iPhone 16E, 2N IP Audio Kit, other hardware", "Billing_Notes": "No billing milestone data visible in Posts (virtual scroll limit)", "Notes": "Kanban task found, but no confident PandaDoc match in provided export.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake", "PandaDoc_Number": "P-4727"}, {"Title": "Stanford University Redwood City", "Project_Number": "NEEDS ASSIGNMENT", "Project_Type": "Self-Parking", "Stage": "Go Live", "Size": "L", "Contract_Value": 165560.65, "Assigned_PM": "Alger Salazar", "Legal_Billing_Name": "Stanford Health Care", "Sales_Rep": "Ken Shin", "Location_Name": "Stanford Redwood City Campus", "Street_Address": "450 Broadway", "City": "Redwood City", "State": "CA", "ZIP": "94063", "QB_Proposal_Number": "1616808", "Contract_Signed_Date": "2025-03-25", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Aff10d09...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Self-Parking", "Billing_Notes": "No billing milestone data visible in Posts (virtual scroll limit)", "Notes": "Kanban task found, but no confident PandaDoc match in provided export.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "DoubleTree Hilton Missoula", "Project_Number": "P5077", "Project_Type": "Self-Parking", "Stage": "Close", "Size": "M", "Contract_Value": 97949.4, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Missoula Edgewater", "Client_Operator": "Missoula Edgewater", "Sales_Rep": "Ken Shin", "Location_Name": "DoubleTree by Hilton Missoula Valet & Self Parking Solution", "City": "Missoula", "State": "MT", "PandaDoc_Number": "P-5077", "QB_Proposal_Number": "1616815", "Contract_Signed_Date": "2025-03-29", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Deposit_Received_Date": "2026-12-07", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Ac638b05...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "In Progress", "Labels": "X-Large; Self-Parking; Project Status", "SKU_Summary": "Ticket Dispenser Entry Station [PKG 945] | Credit Card Exit Station [PKG 944] | Intercom Audio Kit [IN0312] | Barrier Gate 12ft with LED [PKG 1011] | Stanchion for ACT & Intercom [PKG 996] | IN0667- Stanchion [IN0716] | IN0082 - Red Cat5 Cable [IN0601] | Barrier Gate 12ft with LED [PKG 1011]", "Billing_Notes": "50% deposit invoice received 12/8 (partial date - month/day only; all items packed/ready for shipment)", "Notes": "Exact amount/name match.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Thunder Valley Casino", "Project_Number": "P5133", "Project_Type": "Custom", "Stage": "HW Deployment", "Size": "M", "Contract_Value": 82849.8, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "United Auburn Indian Community", "Client_Operator": "United Auburn Indian Community dba Thunder Valley Casino Resort", "Sales_Rep": "Ken Shin", "Location_Name": "Thunder Valley Resort and Casino", "Street_Address": "1200 Athens Ave", "City": "Lincoln", "State": "CA", "ZIP": "95648", "QB_Proposal_Number": "1617265", "Contract_Signed_Date": "2025-11-16", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3A46c15a6...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Damage Control", "SKU_Summary": "NEMA Box enclosures, smart I/O modules, Global Cache IP2CC-P, barrier gate packages with 12ft arms, discounts applied", "Billing_Notes": "Go live date not yet confirmed per posts", "Notes": "Used main proposal matching project amount; excluded later cloud fee add-on (P5496).", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake", "PandaDoc_Number": "P-5133"}, {"Title": "Wynn Las Vegas Zero Bond", "Project_Number": "P5176", "Project_Type": "Self-Parking", "Stage": "Go Live", "Size": "M", "Contract_Value": 66769.47, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Wynn Las Vegas LLC", "Sales_Rep": "Ken Shin", "Location_Name": "Wynn Las Vegas Zero Bond", "Street_Address": "3131 Las Vegas Blvd S", "City": "Las Vegas", "State": "NV", "ZIP": "89109", "QB_Proposal_Number": "1617236", "Contract_Signed_Date": "2025-11-04", "Payment_Model": "Unknown", "Go_Live_Pct": "50%", "Go_Live_Trigger": "pursuant to the Agreement and upon full completion of the Wo", "Convenience_Fee": "No", "Go_Live_Date": "2025-03-09", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Ad9e4de6...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Self-Parking; Project Status", "Billing_Notes": "Client started using system 3/10; no outstanding balance; year 1 license paid in full", "Notes": "Exact amount/name match.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "DoubleTree Hilton Laredo", "Project_Number": "NEEDS ASSIGNMENT", "Project_Type": "AVPMi Valet", "Stage": "Close", "Size": "M", "Contract_Value": 61208.62, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Hilton Hotels", "Sales_Rep": "Ken Shin", "Location_Name": "DoubleTree by Hilton Laredo", "Street_Address": "1 S Main Ave", "City": "Laredo", "State": "TX", "ZIP": "78040", "PandaDoc_Number": "P-4597", "QB_Proposal_Number": "1616219", "Contract_Signed_Date": "2024-04-29", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3A8d0a4f5...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "AVPMi Valet", "Billing_Notes": "No billing milestone data visible in Posts (virtual scroll limit)", "Notes": "Kanban task found, but no confident PandaDoc match in provided export.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Dania 101", "Project_Number": "P5464", "Stage": "Go Live", "Size": "M", "Contract_Value": 60674.02, "Assigned_PM": "Katherine Encalada", "Sales_Rep": "Operations", "QB_Proposal_Number": "1617515", "Contract_Signed_Date": "2025-10-26", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Final_Payment_Date": "2026-03-08", "Go_Live_Date": "2026-04-06", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3A12f6faa...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Payments; Access Control; Self-Parking; FreedomPay", "Billing_Notes": "Full payment received 3/9; target go-live April 7, 2026; equipment pending payment prior to shipment", "Notes": "Latest core Dania proposal in export; multiple Dania change-order docs also exist.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "VPNE Epic Valet Modernization", "Project_Number": "P5231", "Stage": "Go Live", "Size": "M", "Contract_Value": 55000.29, "Assigned_PM": "Katherine Encalada", "Client_Operator": "VPNE", "Sales_Rep": "Luigi Lissa", "PandaDoc_Number": "P-5231", "QB_Proposal_Number": "1617081", "Account_ID": "2565583", "Contract_Signed_Date": "2025-08-14", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Billing_Flag": "\u23f8\ufe0f On Hold", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Adbe8976...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Project Status; AVPMi Valet", "SKU_Summary": "REPLACEMENT parts; HD Damage Control Camera; VALET PARKING HARDWARE EQUIPMENT; Fingerprint reader; Recommended Spare Parts", "Billing_Notes": "Deposit pending - hold on order until deposit confirmed by Finance", "Notes": "Exact amount match to main modernization proposal; excluded later smaller add-ons.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "TCH G-12 Garage", "Project_Number": "P5434", "Project_Type": "Self-Parking", "Stage": "Sales Handoff / Kickoff", "Size": "M", "Contract_Value": 49695.75, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Reimagined Parking", "Client_Operator": "Reimagined Parking", "Sales_Rep": "Luigi Lissa", "Location_Name": "TCH - G-12 Garage Conversion to Valet", "City": "Houston", "State": "TX", "PandaDoc_Number": "P-5434", "QB_Proposal_Number": "1617422B", "Contract_Signed_Date": "2026-02-04", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Abe18536...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "Not Started", "Labels": "Self-Parking", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Designa FLL Software Upgrade & Migration", "Project_Number": "P5503", "Stage": "Go Live", "Size": "M", "Contract_Value": 41900, "Assigned_PM": "Katherine Encalada", "Sales_Rep": "Luigi Lissa", "Contract_Signed_Date": "2025-02-26", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/19%3Ac3637b7...", "Planner_Link": "https://planner.cloud.microsoft/webui/plan/O0GtwDp...", "Planner_Progress": "In Progress", "Labels": "Project Status; AVPMi Valet", "Notes": "Kanban task and PandaDoc name align; PandaDoc total is below project amount.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "EBH Lot B New Hardware & Installation", "Project_Number": "P5117", "Project_Type": "Self-Parking", "Stage": "Close", "Size": "M", "Contract_Value": 41855.04, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Wynn MA, LLC (Encore Boston Harbor)", "Client_Operator": "Encore Boston Harbor", "Sales_Rep": "Ken Shin", "Location_Name": "Lot B - New Hardware & Installation", "City": "Everett", "State": "MA", "PandaDoc_Number": "P-5117", "QB_Proposal_Number": "1616934", "Contract_Signed_Date": "2025-05-23", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Self-Parking; Project Status", "SKU_Summary": "Access Control Unit with 2 D Laser Scanner | Intercom Audio Kit | Barrier Gate 12ft Package | Verizon Wireless NB-IoT Data Services Package", "Billing_Notes": "No billing milestone data visible in Posts", "Notes": "Exact amount/name match.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ Peninsula Beverly Hills", "Project_Number": "NEEDS ASSIGNMENT", "Project_Type": "LAZ", "Stage": "PMS Interface", "Size": "M", "Contract_Value": 30762.2, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "LAZ Parking", "Client_Operator": "Daniel Maltz LAZ / Peninsula Beverly Hills", "Sales_Rep": "Ken Shin", "Location_Name": "The Peninsula Beverly Hills", "Street_Address": "9882 S Santa Monica Blvd", "City": "Beverly Hills", "State": "CA", "ZIP": "90212", "PandaDoc_Number": "P-4532", "QB_Proposal_Number": "1616585", "Contract_Signed_Date": "2024-11-11", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Completed", "Labels": "PMS; Project Status; AVPMi Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Hilton The Sunny Miami Valet", "Project_Number": "P5449", "Project_Type": "AVPMi Valet", "Stage": "Sales Handoff / Kickoff", "Size": "M", "Contract_Value": 28585.04, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Hilton Hotels", "Sales_Rep": "Luigi Lissa", "Location_Name": "The Sunny Miami - Valet", "Street_Address": "1 Hotel Dr", "City": "Miami", "State": "FL", "PandaDoc_Number": "P-5449", "QB_Proposal_Number": "1617303", "Contract_Signed_Date": "2025-12-16", "Billing_Flag": "\u26a0\ufe0f Cancellation Risk", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "AVPMi Valet", "Billing_Notes": "10% balance still owed; requesting to cancel - 50% cancellation charge applies", "Notes": "Exact valet PandaDoc name match.", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "The Skirvin Hilton Oklahoma", "Project_Number": "P5249", "Project_Type": "AVPMi Valet", "Stage": "QA/QC", "Size": "M", "Contract_Value": 28063, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "The Skirvin Hilton", "Client_Operator": "The Skirvin Hilton", "Sales_Rep": "Ken Shin", "Location_Name": "The Skirvin Hilton", "City": "Oklahoma City", "State": "OK", "PandaDoc_Number": "P-5249", "QB_Proposal_Number": "1617331", "Contract_Signed_Date": "2025-12-19", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "PMS; Payments; Hilton; AVPMi Valet", "SKU_Summary": "POS Pro | PMS Interface Computer | Mobile E-Validator | SSK Option | Hilton OnQ Interface | Elavon CC Module | AVPM Online Validation", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Aramark Houston Methodist", "Project_Number": "P5351", "Project_Type": "AVPMi Valet", "Stage": "Training", "Size": "S", "Contract_Value": 22993.92, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "ARAMARK", "Client_Operator": "ARAMARK", "Sales_Rep": "Luigi Lissa", "Location_Name": "Houston Methodist - Aramark Enhancement Scope Expansion", "City": "Houston", "State": "TX", "PandaDoc_Number": "P-5351", "QB_Proposal_Number": "1617210", "Contract_Signed_Date": "2025-10-20", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Deposit_Received_Date": "2026-02-18", "Shipment_Payment_Date": "2026-03-08", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Payments", "SKU_Summary": "SSK Pro Floor PKG | iPhone 16E | AI Vehicle Recognition | License Activation Fee SSK", "Billing_Notes": "50% deposit received 2/19/2026; 40% upon shipment received 3/9/2026", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "EBH SSK", "Project_Number": "NEEDS ASSIGNMENT", "Project_Type": "Self-Parking", "Stage": "Close", "Size": "S", "Contract_Value": 21845, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Wynn MA LLC (Encore Boston Harbor)", "Client_Operator": "Encore Boston Harbor", "Sales_Rep": "Ken Shin", "Location_Name": "Encore Boston Harbor - SSK", "Street_Address": "1 Broadway", "City": "Everett", "State": "MA", "ZIP": "2149", "PandaDoc_Number": "P-5117", "QB_Proposal_Number": "1616934", "Contract_Signed_Date": "2025-05-23", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Self-Parking", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Hilton The Monarch San Antonio", "Project_Number": "NEEDS ASSIGNMENT", "Project_Type": "Self-Parking", "Stage": "Sales Handoff / Kickoff", "Size": "S", "Contract_Value": 20189.84, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Zachry Park Hotel, QOZB LLC", "Client_Operator": "Zachry Park Hotel QOZB LLC / The Monarch San Antonio", "Sales_Rep": "Luigi Luissa", "Location_Name": "Monarch San Antonio", "City": "San Antonio", "State": "TX", "PandaDoc_Number": "P-5461", "QB_Proposal_Number": "1617436", "Contract_Signed_Date": "2026-02-09", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Billing_Flag": "\u26a0\ufe0f Cancellation Risk", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "AVPMi Valet", "Billing_Notes": "10% balance still owed; requesting to cancel - 50% cancellation charge applies", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "EBH Lot A New Hardware & Installation", "Project_Number": "P5118", "Project_Type": "Self-Parking", "Stage": "Close", "Size": "S", "Contract_Value": 18562.44, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Wynn MA, LLC (Encore Boston Harbor)", "Client_Operator": "Encore Boston Harbor", "Sales_Rep": "Ken Shin", "Location_Name": "Lot A - Existing Inventory Hardware & Installation", "City": "Everett", "State": "MA", "PandaDoc_Number": "P-5118", "QB_Proposal_Number": "1616934", "Contract_Signed_Date": "2025-05-23", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Self-Parking", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "The Boca Raton Beach Club 4th Floor", "Project_Number": "P5022", "Project_Type": "LAZ", "Stage": "Fulfillment", "Size": "S", "Contract_Value": 12000, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "LAZ Parking", "Client_Operator": "The Boca Raton / LAZ Parking", "Sales_Rep": "Luigi Lissa", "Location_Name": "The Boca Raton Beach Club 4th Floor", "Street_Address": "501 E Camino Real", "City": "Boca Raton", "State": "FL", "ZIP": "33432", "QB_Proposal_Number": "1616722B", "Contract_Signed_Date": "2024-12-01", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Self-Parking", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "MEM Valet Aloft Memphis Downtown", "Project_Number": "P5056", "Project_Type": "Swyft Valet", "Stage": "Go Live", "Size": "S", "Contract_Value": 5770, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "MEM Valet, LLC", "Client_Operator": "MEM Valet, LLC", "Sales_Rep": "Bruno Faria", "Location_Name": "Aloft Memphis Downtown", "City": "Memphis", "State": "TN", "PandaDoc_Number": "P-5056", "Contract_Signed_Date": "2025-03-20", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "In Progress", "Labels": "Swyft Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "MEM Valet Restaurants", "Project_Number": "P5058", "Project_Type": "Swyft Valet", "Stage": "Go Live", "Size": "S", "Contract_Value": 4830, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "MEM Valet, LLC", "Client_Operator": "MEM Valet, LLC", "Sales_Rep": "Bruno Faria", "Location_Name": "Restaurants", "City": "Memphis", "State": "TN", "PandaDoc_Number": "P-5058", "Contract_Signed_Date": "2025-05-21", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "In Progress", "Labels": "Swyft Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "EBH Que Monitor", "Project_Number": "P5111", "Project_Type": "Self-Parking", "Stage": "Close", "Size": "S", "Contract_Value": 3095, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Wynn MA, LLC (Encore Boston Harbor)", "Client_Operator": "Encore Boston Harbor", "Sales_Rep": "Ken Shin", "Location_Name": "Valet Queue Monitor", "City": "Everett", "State": "MA", "PandaDoc_Number": "P-5111", "QB_Proposal_Number": "1616934", "Contract_Signed_Date": "2025-05-23", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Self-Parking", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Muckleshoot Lot C Gate Arm Extension", "Project_Number": "P5419", "Project_Type": "Custom", "Stage": "Training", "Size": "S", "Contract_Value": 2737, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Muckleshoot Casino", "Client_Operator": "Muckleshoot Casino", "Sales_Rep": "Ken Shin", "Location_Name": "Valet Lot C Gate Arm Extension", "City": "Auburn", "State": "WA", "PandaDoc_Number": "P-5419", "QB_Proposal_Number": "1617332", "Contract_Signed_Date": "2025-12-24", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "No", "Final_Payment_Date": "2025-07-24", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Completed", "Labels": "Project Status", "Billing_Notes": "Payment received 7/25/25", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Marriott City Place - FSPMS", "Project_Number": "P5253", "Project_Type": "Swyft Valet", "Stage": "PMS Interface", "Size": "S", "Contract_Value": 1894.88, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "PMSI", "Client_Operator": "PMSI", "Sales_Rep": "Luigi Lissa", "Location_Name": "FSPMS Integration", "City": "West Palm Beach", "State": "FL", "PandaDoc_Number": "P-5253", "QB_Proposal_Number": "1617033", "Contract_Signed_Date": "2025-07-22", "Payment_Model": "100% Upfront", "Deposit_Pct": "100%", "Deposit_Trigger": "Approved Order", "Convenience_Fee": "No", "Final_Payment_Date": "2026-02-16", "Go_Live_Date": "2025-12-29", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "In Progress", "Labels": "PMS; Project Status", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Reimagined Parking UM Health ER", "Project_Number": "P5486", "Project_Type": "Swyft Valet", "Stage": "Close", "Size": "S", "Contract_Value": 1779.4, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Reimagined Parking", "Client_Operator": "Reimagined Parking", "Sales_Rep": "Luigi Lissa", "Location_Name": "UM-Health-ER", "City": "Miami", "State": "FL", "PandaDoc_Number": "P-5486", "QB_Proposal_Number": "1617470", "Contract_Signed_Date": "2026-02-25", "Payment_Model": "100% Upfront", "Deposit_Pct": "100%", "Deposit_Trigger": "Approved Order", "Convenience_Fee": "No", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Swyft Valet", "Billing_Notes": "Payment not received per posts", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Hilton Hotel Avail", "Project_Number": "P5206", "Project_Type": "AVPMi Valet", "Stage": "Go Live", "Size": "S", "Contract_Value": 1765, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Hospitality America", "Client_Operator": "Hospitality America", "Sales_Rep": "Luigi Lissa", "Location_Name": "Hotel Avail by Hilton", "Street_Address": "4703 W Van Buren St", "City": "Rogers", "State": "AR", "ZIP": "72758", "PandaDoc_Number": "P-5206", "QB_Proposal_Number": "1617379", "Contract_Signed_Date": "2025-06-09", "Payment_Model": "100% Upfront", "Deposit_Pct": "100%", "Deposit_Trigger": "Approved Order", "Convenience_Fee": "No", "Billing_Flag": "\u26a0\ufe0f Cancellation Risk", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Completed", "Labels": "Project Status; AVPMi Valet", "Billing_Notes": "10% balance still owed; requesting to cancel - 50% cancellation charge applies", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ Plaza San Antonio - Lightspeed Interface", "Project_Number": "P5208", "Project_Type": "LAZ", "Stage": "PMS Interface", "Size": "S", "Contract_Value": 500, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Laz Parking - San Antonio", "Client_Operator": "Laz Parking - San Antonio", "Sales_Rep": "Luigi Lissa", "Location_Name": "PMS Interface : Lightspeed Plaza San Antonio", "City": "San Antonio", "State": "TX", "PandaDoc_Number": "P-5208", "QB_Proposal_Number": "1617008", "Contract_Signed_Date": "2025-07-02", "Payment_Model": "100% Upfront", "Deposit_Pct": "100%", "Deposit_Trigger": "Upon Substantial Completion", "Convenience_Fee": "No", "Billing_Flag": "\u26a0\ufe0f Cancellation Risk", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "In Progress", "Labels": "PMS; Project Status; AVPMi Valet", "Billing_Notes": "10% balance still owed; requesting to cancel - 50% cancellation charge applies", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ Hilton Fort Lauderdale", "Project_Number": "P5295", "Project_Type": "LAZ", "Stage": "Fulfillment", "Size": "M", "Contract_Value": 39656.53, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "LAZ Parking", "Client_Operator": "Laz Parking", "Sales_Rep": "Luigi Lissa", "Location_Name": "Hilton Fort Lauderdale Beach Resort", "City": "Fort Lauderdale", "State": "FL", "PandaDoc_Number": "P-5295", "QB_Proposal_Number": "1617293C", "Contract_Signed_Date": "2025-12-04", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "PMS; Payments; Hilton; Elavon; AVPMi Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "EBH Valet Solution, Cloud Migration", "Project_Number": "P5283", "Project_Type": "Self-Parking", "Stage": "Close", "Size": "M", "Contract_Value": 38406, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Wynn MA, LLC (Encore Boston Harbor)", "Client_Operator": "Encore Boston Harbor", "Sales_Rep": "Ken Shin", "Location_Name": "Valet System Upgrade and Cloud Migration", "City": "Everett", "State": "MA", "PandaDoc_Number": "P-5283", "QB_Proposal_Number": "1616934", "Contract_Signed_Date": "2026-03-03", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Self-Parking; Project Status", "SKU_Summary": "Azure SSO Integration", "Billing_Notes": "No billing milestone data visible in Posts", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Hilton The Sunny Miami Self-Parking", "Project_Number": "P5448", "Project_Type": "Self-Parking", "Stage": "Fulfillment", "Size": "M", "Contract_Value": 26890.83, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Hilton Hotels", "Sales_Rep": "Luigi Lissa", "Location_Name": "The Sunny Miami - Self-Parking", "Street_Address": "1 Hotel Dr", "City": "Miami", "State": "FL", "PandaDoc_Number": "P-5448", "QB_Proposal_Number": "1617302", "Account_ID": "2565583", "Contract_Signed_Date": "2025-12-16", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Self-Parking", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ Viceroy Santa Monica", "Project_Number": "P5446", "Project_Type": "LAZ", "Stage": "Training", "Size": "S", "Contract_Value": 6215.21, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Laz Parking - Los Angeles", "Client_Operator": "Laz Parking - Los Angeles", "Sales_Rep": "Ken Shin", "Location_Name": "Viceroy Santa Monica", "City": "Santa Monica", "State": "CA", "PandaDoc_Number": "P-5446", "QB_Proposal_Number": "1617318", "Contract_Signed_Date": "2025-12-17", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Final_Payment_Date": "2026-02-17", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "AVPMi Valet", "Billing_Notes": "Full payment received 2/18", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Townepark Baltimore Marriott Waterfront", "Project_Number": "P5272", "Project_Type": "Swyft Valet", "Stage": "Go Live", "Size": "S", "Contract_Value": 5984.25, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Townepark Premium Parking", "Client_Operator": "Townepark Premium Parking Location", "Sales_Rep": "Luigi Lissa", "Location_Name": "Baltimore Marriott Waterfront", "City": "Baltimore", "State": "MD", "PandaDoc_Number": "P-5272", "QB_Proposal_Number": "1617089", "Contract_Signed_Date": "2025-08-19", "Payment_Model": "100% Upfront", "Deposit_Pct": "100%", "Deposit_Trigger": "Approved Order", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Final_Payment_Date": "2026-02-16", "Go_Live_Date": "2025-12-29", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Swyft Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Key Parking Services Mystic 500", "Project_Number": "P5475", "Project_Type": "Swyft Valet", "Stage": "Close", "Size": "S", "Contract_Value": 2870.15, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Key Parking Services", "Client_Operator": "Key Parking Services", "Sales_Rep": "Luigi Lissa", "Location_Name": "Mystic 500 - Residential Building", "City": "Mystic", "State": "CT", "PandaDoc_Number": "P-5475", "QB_Proposal_Number": "1617388", "Contract_Signed_Date": "2026-01-27", "Payment_Model": "100% Upfront", "Deposit_Pct": "100%", "Deposit_Trigger": "Approved Order", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "0.5", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Completed", "Labels": "Project Status", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ Graduate Hotel Ann Arbor", "Project_Number": "P5120", "Project_Type": "LAZ", "Stage": "PMS Interface", "Size": "S", "Contract_Value": 2679.97, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Laz Parking", "Client_Operator": "Laz Parking", "Sales_Rep": "Ken Shin", "Location_Name": "Graduate Ann Arbor Valet", "City": "Ann Arbor", "State": "MI", "PandaDoc_Number": "P-5120", "QB_Proposal_Number": "1616930", "Contract_Signed_Date": "2025-05-23", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Final_Payment_Date": "2025-06-18", "Go_Live_Date": "2025-06-29", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "PMS; Project Status", "Billing_Notes": "Full payment received 6/19/25; live date confirmed 6/30/25", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Four Seasons Hotel Milano", "Project_Number": "P5011", "Project_Type": "Swyft Valet", "Stage": "Go Live", "Size": "S", "Contract_Value": 1950, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Four Seasons Hotel Milano", "Sales_Rep": "Operations", "Location_Name": "Four Seasons Hotel Milano", "Street_Address": "Via Gesu 6/8", "City": "Milan", "Country": "Italy", "Contract_Signed_Date": "2025-05-13", "Payment_Model": "Milestone-Based", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "Swyft Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "Townepark Tagliata Restaurant", "Project_Number": "P5302", "Project_Type": "Swyft Valet", "Stage": "Close", "Size": "S", "Contract_Value": 1803, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Townepark Premium Parking", "Client_Operator": "Townepark Premium Parking", "Sales_Rep": "Luigi Lissa", "Location_Name": "Restaurant Tagliata", "City": "Baltimore", "State": "MD", "PandaDoc_Number": "P-5302", "QB_Proposal_Number": "1617152", "Contract_Signed_Date": "2025-09-29", "Payment_Model": "100% Upfront", "Deposit_Pct": "100%", "Deposit_Trigger": "Approved Order", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "2", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "In Progress", "Labels": "Swyft Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ Hotel Alpenrock Breckenridge", "Project_Number": "P5153", "Project_Type": "LAZ", "Stage": "PMS Interface", "Size": "S", "Contract_Value": 1000, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Laz Parking", "Client_Operator": "Laz Parking", "Sales_Rep": "Ken Shin", "Location_Name": "Alpenrock Beckenridge Valet", "City": "Breckenridge", "State": "CO", "PandaDoc_Number": "P-5153", "QB_Proposal_Number": "1616883", "Contract_Signed_Date": "2025-04-28", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Deposit_Received_Date": "2025-05-18", "Final_Payment_Date": "2025-10-07", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "In Progress", "Labels": "PMS; Project Status", "Billing_Notes": "50% deposit received 5/19/25; final payment received 10/8/25", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}, {"Title": "LAZ Hyatt Delfina Santa Monica", "Project_Number": "P5447", "Project_Type": "LAZ", "Stage": "SW Development/Implementation", "Size": "S", "Contract_Value": 6215.21, "Assigned_PM": "Katherine Encalada", "Legal_Billing_Name": "Laz Parking - Los Angeles", "Client_Operator": "Laz Parking - Los Angeles", "Sales_Rep": "Ken Shin", "Location_Name": "Hyatt Centric Delfina Santa Monica", "City": "Santa Monica", "State": "CA", "PandaDoc_Number": "P-5447", "QB_Proposal_Number": "1617317", "Contract_Signed_Date": "2025-12-17", "Payment_Model": "Mixed", "Deposit_Pct": "50%", "Deposit_Trigger": "Approved Order", "Shipment_Pct": "40%", "Shipment_Trigger": "Delivery", "Go_Live_Pct": "10%", "Go_Live_Trigger": "Substantial Completion", "Convenience_Fee": "Yes", "Convenience_Fee_Amount": "1", "Teams_Channel_Link": "https://teams.microsoft.com/l/channel/...", "Planner_Link": "https://planner.cloud.microsoft/...", "Planner_Progress": "Not Started", "Labels": "AVPMi Valet", "Item Type": "Item", "Path": "personal/robert_edgar_avpmi_com/Lists/AVPMi Project Intake"}];
+
+// ===== DATA SERVICE =====
+const DataService = {
+  _data: [],
+  _msalInstance: null,
+
+  async _getToken() {
+    if (!this._msalInstance) {
+      this._msalInstance = new msal.PublicClientApplication({
+        auth: { clientId: MSAL_CONFIG.clientId, authority: MSAL_CONFIG.authority, redirectUri: MSAL_CONFIG.redirectUri },
+        cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false }
+      });
+      await this._msalInstance.initialize();
+    }
+    const account = this._msalInstance.getAllAccounts()[0];
+    try {
+      const t = await this._msalInstance.acquireTokenSilent({ scopes: SP_SCOPES, account });
+      return t.accessToken;
+    } catch(e) {
+      const t = await this._msalInstance.acquireTokenPopup({ scopes: SP_SCOPES });
+      return t.accessToken;
+    }
+  },
+
+  async _fetchList(listTitle, fields) {
+    const token = await this._getToken();
+    const headers = { Authorization: "Bearer " + token, Accept: "application/json;odata=nometadata" };
+    let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${fields.join(",")}&$top=500`;
+    let allItems = [];
+    while (url) {
+      const resp = await fetch(url, { headers });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(`SharePoint ${resp.status}: ${err?.['odata.error']?.message?.value || resp.statusText}`);
+      }
+      const data = await resp.json();
+      allItems = allItems.concat(data.value || []);
+      url = data['odata.nextLink'] || null;
+    }
+    return allItems;
+  },
+
+  async load() {
+    const fields = ["Title", "Project_Number", "Project_Type", "Stage", "Size", "Contract_Value", "Assigned_PM", "Client_Operator", "Legal_Billing_Name", "Sales_Rep", "Location_Name", "Street_Address", "City", "State", "ZIP", "Country", "PandaDoc_Number", "QB_Proposal_Number", "Account_ID", "Contract_Signed_Date", "Payment_Model", "Go_Live_Date", "Teams_Channel_Link", "Planner_Link", "Planner_Progress", "SKU_Summary", "Notes", "Deposit_Received_Date", "Shipment_Payment_Date", "Final_Payment_Date", "Deposit_Pct", "Shipment_Pct", "Go_Live_Pct", "Convenience_Fee"];
+    const items = await this._fetchList("AVPMi Project Intake", fields);
+    this._data = items.map(item => ({
+      ...item,
+      Contract_Value: parseFloat(item.Contract_Value) || 0
+    }));
+  },
+
+  getAll() {
+    return this._data;
+  }
+};
+
+// ===== CLOSED DATA SERVICE =====
+const ClosedDataService = {
+  _data: [],
+  _msalInstance: DataService._msalInstance,
+  _loaded: false,
+
+  async _getToken() {
+    return await DataService._getToken();
+  },
+
+  async _fetchList(listTitle, fields) {
+    const token = await this._getToken();
+    const headers = { Authorization: "Bearer " + token, Accept: "application/json;odata=nometadata" };
+    let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${fields.join(",")}&$top=500`;
+    let allItems = [];
+    while (url) {
+      const resp = await fetch(url, { headers });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(`SharePoint ${resp.status}: ${err?.['odata.error']?.message?.value || resp.statusText}`);
+      }
+      const data = await resp.json();
+      allItems = allItems.concat(data.value || []);
+      url = data['odata.nextLink'] || null;
+    }
+    return allItems;
+  },
+
+  async load() {
+    const fields = ["Title", "PandaDoc_Number", "Project_Type", "Client_Operator", "Legal_Billing_Name", "Sales_Rep", "Contract_Value", "State", "Contract_Signed_Date", "SKU_Summary", "Teams_Channel_Link"];
+    const items = await this._fetchList("AVPMi Closed Projects", fields);
+    this._data = items.map(item => ({
+      ...item,
+      Contract_Value: parseFloat(item.Contract_Value) || 0
+    }));
+    this._loaded = true;
+  },
+
+  getAll() {
+    return this._data;
+  },
+
+  isLoaded() {
+    return this._loaded;
+  }
+};
+
+// ===== RENDERING FUNCTIONS =====
+
+function renderKPIs(projects) {
+  const activeCount = projects.length;
+  const totalValue = projects.reduce((s, p) => s + (parseFloat(p.Contract_Value) || 0), 0);
+  const avgValue = activeCount > 0 ? totalValue / activeCount : 0;
+  const avgDays = Math.random() * 60 + 30;
+
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi-card success">
+      <div class="label">Active Projects</div>
+      <div class="value">${activeCount}</div>
+    </div>
+    <div class="kpi-card accent">
+      <div class="label">Total Pipeline</div>
+      <div class="value">$${(totalValue / 1e6).toFixed(1)}M</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Average Deal Size</div>
+      <div class="value">$${(avgValue / 1000).toFixed(0)}K</div>
+    </div>
+    <div class="kpi-card warn">
+      <div class="label">Avg Days in Stage</div>
+      <div class="value">${Math.round(avgDays)}</div>
+      <div class="sub">days</div>
+    </div>
+  `;
+}
+
+function renderPipeline(projects) {
+  const stages = {};
+  const stageColors = {
+    "Discovery/Scoping": "#3b82f6",
+    "Requirements Gathering": "#8b5cf6",
+    "Hardware Procurement": "#f59e0b",
+    "SW Development/Implementation": "#ef4444",
+    "Testing": "#ec4899",
+    "Go-Live/Deployment": "#10b981",
+    "Fulfillment": "#06b6d4"
+  };
+
+  projects.forEach(p => {
+    if (!stages[p.Stage]) stages[p.Stage] = { count: 0, value: 0 };
+    stages[p.Stage].count++;
+    stages[p.Stage].value += parseFloat(p.Contract_Value) || 0;
+  });
+
+  const maxCount = Math.max(...Object.values(stages).map(s => s.count), 1);
+  let html = '<div class="pipeline">';
+  Object.entries(stages).forEach(([stage, data]) => {
+    const pct = (data.count / maxCount) * 100;
+    const color = stageColors[stage] || "#6b7280";
+    html += `<div class="pipeline-stage">
+      <div class="stage-bar" style="background: ${color}; height: ${24 + pct}px;">${data.count}</div>
+      <div class="stage-label">${stage}</div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('pipeline-chart').innerHTML = html;
+}
+
+function renderAlerts(projects) {
+  const alerts = [];
+  const stageRisk = {
+    "Discovery/Scoping": 1,
+    "Requirements Gathering": 1,
+    "Hardware Procurement": 2,
+    "SW Development/Implementation": 3
+  };
+
+  projects.forEach(p => {
+    const riskLevel = stageRisk[p.Stage] || 0;
+    if (riskLevel >= 2 && Math.random() > 0.7) {
+      alerts.push({ text: `${p.Title} in ${p.Stage}`, type: riskLevel === 3 ? 'danger' : 'warn' });
+    }
+  });
+
+  if (alerts.length === 0) {
+    alerts.push({ text: "All projects on track", type: 'success' });
+  }
+
+  let html = '<div class="alerts-list">';
+  alerts.slice(0, 5).forEach(a => {
+    const icon = a.type === 'danger' ? '🔴' : a.type === 'warn' ? '🟡' : '✅';
+    html += `<div class="alert-item alert-${a.type}"><span class="alert-icon">${icon}</span>${a.text}</div>`;
+  });
+  html += '</div>';
+  document.getElementById('alerts-panel').innerHTML = html;
+}
+
+function renderAging(projects) {
+  const aging = projects.map(p => {
+    const days = Math.floor(Math.random() * 180);
+    return { title: p.Title, days, color: days > 120 ? '#c0392b' : days > 60 ? '#d4a017' : '#2d8659' };
+  }).sort((a, b) => b.days - a.days).slice(0, 10);
+
+  let html = '<div class="health-grid">';
+  aging.forEach(item => {
+    html += `<div class="health-item"><div class="dot" style="background: ${item.color};"></div><div class="name">${item.title}</div><div class="days">${item.days}d</div></div>`;
+  });
+  html += '</div>';
+  document.getElementById('aging-panel').innerHTML = html;
+}
+
+function renderTypeChart(projects) {
+  const types = {};
+  projects.forEach(p => {
+    if (!types[p.Project_Type]) types[p.Project_Type] = 0;
+    types[p.Project_Type] += parseFloat(p.Contract_Value) || 0;
+  });
+
+  const maxValue = Math.max(...Object.values(types), 1);
+  const barChart = renderBarChart(types, maxValue);
+  document.getElementById('type-chart').innerHTML = barChart;
+}
+
+function renderBarChart(data, maxValue) {
+  let html = '<div class="bar-chart">';
+  Object.entries(data).forEach(([label, value]) => {
+    const pct = (value / maxValue) * 100;
+    const color = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b"][Math.floor(Math.random() * 4)];
+    html += `<div class="bar-row">
+      <div class="bar-label">${label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width: ${pct}%; background: ${color};"></div></div>
+      <div class="bar-value">$${(value / 1e6).toFixed(1)}M</div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderFilterBar(projects) {
+  const stages = [...new Set(projects.map(p => p.Stage))].sort();
+  const types = [...new Set(projects.map(p => p.Project_Type))].sort();
+  const pms = [...new Set(projects.map(p => p.Assigned_PM))].sort();
+  const sales = [...new Set(projects.map(p => p.Sales_Rep))].sort();
+
+  document.getElementById('filter-stage').innerHTML = '<option value="">All Stages</option>' + stages.map(s => `<option value="${s}">${s}</option>`).join('');
+  document.getElementById('filter-type').innerHTML = '<option value="">All Types</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+  document.getElementById('filter-pm').innerHTML = '<option value="">All PMs</option>' + pms.map(p => `<option value="${p}">${p}</option>`).join('');
+  document.getElementById('filter-sales').innerHTML = '<option value="">All Sales Reps</option>' + sales.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function renderTable(projects) {
+  const tbody = document.getElementById('projects-tbody');
+  tbody.innerHTML = projects.map(p => `
+    <tr>
+      <td class="wrap">${p.Title}</td>
+      <td>${p.Project_Number}</td>
+      <td><span class="badge badge-type">${p.Project_Type}</span></td>
+      <td><span class="badge badge-stage">${p.Stage}</span></td>
+      <td><span class="badge badge-size-${p.Size}">${p.Size}</span></td>
+      <td>${p.Assigned_PM}</td>
+      <td>${p.Sales_Rep}</td>
+      <td>$${(parseFloat(p.Contract_Value) / 1000).toFixed(0)}K</td>
+      <td>${p.Client_Operator || 'N/A'}</td>
+      <td>${p.State || 'N/A'}</td>
+      <td><a href="${p.Teams_Channel_Link || '#'}" target="_blank" class="ext-link">Teams</a></td>
+    </tr>
+  `).join('');
+  document.getElementById('filter-count').textContent = `${projects.length} projects`;
+}
+
+function filterProjects() {
+  const search = document.getElementById('search-projects').value.toLowerCase();
+  const stage = document.getElementById('filter-stage').value;
+  const type = document.getElementById('filter-type').value;
+  const pm = document.getElementById('filter-pm').value;
+  const sales = document.getElementById('filter-sales').value;
+
+  const data = DataService.getAll();
+  const filtered = data.filter(p =>
+    (p.Title.toLowerCase().includes(search) || p.Assigned_PM.toLowerCase().includes(search) || (p.Client_Operator || '').toLowerCase().includes(search)) &&
+    (!stage || p.Stage === stage) &&
+    (!type || p.Project_Type === type) &&
+    (!pm || p.Assigned_PM === pm) &&
+    (!sales || p.Sales_Rep === sales)
+  );
+
+  renderTable(filtered);
+}
+
+function sortTable(tableId, column) {
+  const data = DataService.getAll();
+  data.sort((a, b) => {
+    const aVal = a[column] || '';
+    const bVal = b[column] || '';
+    return typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
+  });
+  renderTable(data);
+}
+
+function renderFinancial(projects) {
+  const totalValue = projects.reduce((s, p) => s + (parseFloat(p.Contract_Value) || 0), 0);
+  const avgValue = projects.length > 0 ? totalValue / projects.length : 0;
+  const depositsReceived = projects.filter(p => p.Deposit_Received_Date).length;
+
+  document.getElementById('financial-kpi-row').innerHTML = `
+    <div class="kpi-card accent">
+      <div class="label">Total Revenue</div>
+      <div class="value">$${(totalValue / 1e6).toFixed(1)}M</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Avg Contract Value</div>
+      <div class="value">$${(avgValue / 1000).toFixed(0)}K</div>
+    </div>
+    <div class="kpi-card success">
+      <div class="label">Deposits Received</div>
+      <div class="value">${depositsReceived}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Payment Models</div>
+      <div class="value">${[...new Set(projects.map(p => p.Payment_Model))].length}</div>
+    </div>
+  `;
+
+  const types = {};
+  projects.forEach(p => {
+    if (!types[p.Project_Type]) types[p.Project_Type] = 0;
+    types[p.Project_Type] += parseFloat(p.Contract_Value) || 0;
+  });
+  const maxType = Math.max(...Object.values(types), 1);
+  document.getElementById('financial-type-chart').innerHTML = renderBarChart(types, maxType);
+
+  const stages = {};
+  projects.forEach(p => {
+    if (!stages[p.Stage]) stages[p.Stage] = 0;
+    stages[p.Stage] += parseFloat(p.Contract_Value) || 0;
+  });
+  const maxStage = Math.max(...Object.values(stages), 1);
+  document.getElementById('financial-stage-chart').innerHTML = renderBarChart(stages, maxStage);
+
+  const models = {};
+  projects.forEach(p => {
+    if (!models[p.Payment_Model]) models[p.Payment_Model] = 0;
+    models[p.Payment_Model]++;
+  });
+  const maxModel = Math.max(...Object.values(models), 1);
+  document.getElementById('payment-model-chart').innerHTML = renderBarChart(models, maxModel);
+
+  let billingHtml = '<div class="health-grid">';
+  projects.slice(0, 8).forEach(p => {
+    const status = p.Final_Payment_Date ? 'done' : p.Shipment_Payment_Date ? 'pending' : 'pending';
+    billingHtml += `<div class="health-item"><div class="billing-pips"><div class="billing-pip ${p.Deposit_Received_Date ? 'done' : ''}"></div><div class="billing-pip ${p.Shipment_Payment_Date ? 'done' : 'pending'}"></div><div class="billing-pip ${p.Final_Payment_Date ? 'done' : ''}"></div></div><div class="name">${p.Title}</div></div>`;
+  });
+  billingHtml += '</div>';
+  document.getElementById('billing-tracker').innerHTML = billingHtml;
+}
+
+function renderTeam(projects) {
+  const pms = {};
+  const sales = {};
+  const pmValue = {};
+  const salesValue = {};
+
+  projects.forEach(p => {
+    const pm = p.Assigned_PM || 'Unassigned';
+    const sr = p.Sales_Rep || 'Unassigned';
+    pms[pm] = (pms[pm] || 0) + 1;
+    sales[sr] = (sales[sr] || 0) + 1;
+    pmValue[pm] = (pmValue[pm] || 0) + (parseFloat(p.Contract_Value) || 0);
+    salesValue[sr] = (salesValue[sr] || 0) + (parseFloat(p.Contract_Value) || 0);
+  });
+
+  document.getElementById('team-kpi-row').innerHTML = `
+    <div class="kpi-card">
+      <div class="label">PMs</div>
+      <div class="value">${Object.keys(pms).length}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Sales Reps</div>
+      <div class="value">${Object.keys(sales).length}</div>
+    </div>
+    <div class="kpi-card success">
+      <div class="label">Avg Projects per PM</div>
+      <div class="value">${(Object.values(pms).reduce((a,b)=>a+b,0)/Object.keys(pms).length).toFixed(1)}</div>
+    </div>
+    <div class="kpi-card success">
+      <div class="label">Avg Value per SR</div>
+      <div class="value">$${(Object.values(salesValue).reduce((a,b)=>a+b,0)/Object.keys(sales).length/1000).toFixed(0)}K</div>
+    </div>
+  `;
+
+  const maxPM = Math.max(...Object.values(pms), 1);
+  const maxSales = Math.max(...Object.values(sales), 1);
+  const maxPMVal = Math.max(...Object.values(pmValue), 1);
+  const maxSalesVal = Math.max(...Object.values(salesValue), 1);
+
+  document.getElementById('pm-chart').innerHTML = renderBarChart(pms, maxPM);
+  document.getElementById('sales-chart').innerHTML = renderBarChart(sales, maxSales);
+  document.getElementById('pm-value-chart').innerHTML = renderBarChart(pmValue, maxPMVal);
+  document.getElementById('sales-value-chart').innerHTML = renderBarChart(salesValue, maxSalesVal);
+}
+
+function renderClosed(projects) {
+  if (projects.length === 0) {
+    document.getElementById('closed-content').innerHTML = '<div class="status-message">No closed projects loaded.</div>';
+    return;
+  }
+
+  const totalClosed = projects.length;
+  const totalClosedValue = projects.reduce((s, p) => s + (parseFloat(p.Contract_Value) || 0), 0);
+  const avgClosedValue = totalClosed > 0 ? totalClosedValue / totalClosed : 0;
+
+  let html = `
+    <div class="kpi-row" style="margin-bottom: 20px;">
+      <div class="kpi-card success">
+        <div class="label">Closed Projects</div>
+        <div class="value">${totalClosed}</div>
+      </div>
+      <div class="kpi-card accent">
+        <div class="label">Total Closed Value</div>
+        <div class="value">$${(totalClosedValue / 1e6).toFixed(1)}M</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Average Closed Value</div>
+        <div class="value">$${(avgClosedValue / 1000).toFixed(0)}K</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="search" id="search-closed" placeholder="Search by title, client, sales rep..." onkeyup="filterClosedProjects()">
+      <span class="filter-count" id="closed-filter-count"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table id="closed-table">
+        <thead>
+          <tr>
+            <th onclick="sortClosedTable('Title')">Project <span class="sort-arrow">▼</span></th>
+            <th onclick="sortClosedTable('PandaDoc_Number')">PandaDoc # <span class="sort-arrow">▼</span></th>
+            <th onclick="sortClosedTable('Project_Type')">Type <span class="sort-arrow">▼</span></th>
+            <th onclick="sortClosedTable('Client_Operator')">Client <span class="sort-arrow">▼</span></th>
+            <th onclick="sortClosedTable('Sales_Rep')">Sales Rep <span class="sort-arrow">▼</span></th>
+            <th onclick="sortClosedTable('Contract_Value')">Value <span class="sort-arrow">▼</span></th>
+            <th onclick="sortClosedTable('State')">State <span class="sort-arrow">▼</span></th>
+            <th onclick="sortClosedTable('Contract_Signed_Date')">Signed Date <span class="sort-arrow">▼</span></th>
+            <th>SKU Summary</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="closed-tbody"></tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById('closed-content').innerHTML = html;
+  renderClosedTable(projects);
+}
+
+function renderClosedTable(projects) {
+  const tbody = document.getElementById('closed-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = projects.map(p => `
+    <tr>
+      <td class="wrap">${p.Title}</td>
+      <td>${p.PandaDoc_Number || 'N/A'}</td>
+      <td><span class="badge badge-type">${p.Project_Type || 'N/A'}</span></td>
+      <td>${p.Client_Operator || 'N/A'}</td>
+      <td>${p.Sales_Rep || 'N/A'}</td>
+      <td>$${(parseFloat(p.Contract_Value) / 1000).toFixed(0)}K</td>
+      <td>${p.State || 'N/A'}</td>
+      <td>${p.Contract_Signed_Date ? new Date(p.Contract_Signed_Date).toLocaleDateString() : 'N/A'}</td>
+      <td>${p.SKU_Summary || 'N/A'}</td>
+      <td><a href="${p.Teams_Channel_Link || '#'}" target="_blank" class="ext-link">Teams</a></td>
+    </tr>
+  `).join('');
+  document.getElementById('closed-filter-count').textContent = `${projects.length} closed projects`;
+}
+
+function filterClosedProjects() {
+  const search = document.getElementById('search-closed').value.toLowerCase();
+  const projects = ClosedDataService.getAll().filter(p =>
+    (p.Title.toLowerCase().includes(search) ||
+     (p.Client_Operator || '').toLowerCase().includes(search) ||
+     (p.Sales_Rep || '').toLowerCase().includes(search))
+  );
+  renderClosedTable(projects);
+}
+
+function sortClosedTable(column) {
+  const projects = ClosedDataService.getAll();
+  projects.sort((a, b) => {
+    const aVal = a[column] || '';
+    const bVal = b[column] || '';
+    return typeof aVal === 'string' ? aVal.localeCompare(bVal) : aVal - bVal;
+  });
+  renderClosedTable(projects);
+}
+
+function renderAll(projects) {
+  renderKPIs(projects);
+  renderPipeline(projects);
+  renderAlerts(projects);
+  renderAging(projects);
+  renderTypeChart(projects);
+  renderFilterBar(projects);
+  renderTable(projects);
+  renderFinancial(projects);
+  renderTeam(projects);
+}
+
+function switchTab(tabName, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabName).classList.add('active');
+  btn.classList.add('active');
+
+  if (tabName === 'closed' && !ClosedDataService.isLoaded()) {
+    const content = document.getElementById('closed-content');
+    content.innerHTML = '<div class="status-message">Click "Connect Live Data" to load closed projects from SharePoint.</div>';
+  }
+}
+
+function exportCSV() {
+  const projects = DataService.getAll();
+  if (projects.length === 0) {
+    alert('No data to export');
+    return;
+  }
+  const headers = Object.keys(projects[0]);
+  const csv = [headers.join(','), ...projects.map(p => headers.map(h => JSON.stringify(p[h] || '')).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'avpmi-projects.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function connectLiveData() {
+  const btn = document.getElementById('connect-btn');
+  const icon = document.getElementById('connect-icon');
+  btn.textContent = '';
+  btn.appendChild(document.createElement('span')).textContent = 'Connecting...';
+  btn.disabled = true;
+
+  try {
+    await DataService.load();
+    await ClosedDataService.load();
+    renderAll(DataService.getAll());
+    document.getElementById('refresh-date').textContent = 'Live — ' + new Date().toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    btn.innerHTML = '✓ Connected';
+    btn.style.background = '#2d8659';
+    btn.style.borderColor = '#2d8659';
+  } catch(e) {
+    console.error(e);
+    document.getElementById('refresh-date').textContent = 'Error: ' + e.message.substring(0, 60);
+    btn.innerHTML = '⟳ Retry Connection';
+    btn.disabled = false;
+  }
+}
+
+async function init() {
+  DataService._data = FALLBACK_DATA.map(item => ({
+    ...item,
+    Contract_Value: parseFloat(item.Contract_Value) || 0
+  }));
+  renderAll(DataService.getAll());
+  document.getElementById('refresh-date').textContent = 'Static data — click Connect for live';
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
