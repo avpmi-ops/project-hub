@@ -365,11 +365,8 @@ const DataService = {
       console.log("Loaded " + this._data.length + " active projects from JSON");
       return json.lastUpdated || null;
     } catch(e) {
-      console.warn("Could not load projects.json, using embedded fallback: " + e.message);
-      this._data = FALLBACK_DATA.map(item => ({
-        ...item,
-        Contract_Value: parseFloat(item.Contract_Value) || 0
-      }));
+      console.error("Could not load projects.json: " + e.message + " - make sure projects.json is in the repo");
+      this._data = [];
       return null;
     }
   },
