@@ -383,10 +383,16 @@ const DataService = {
     }
   },
 
-  async _fetchList(listTitle, fields) {
+  _lookupFields: ["Assigned_PM", "Sales_Rep"],
+
+  async _fetchList(listTitle, fields, lookupOverride) {
     const token = await this._getToken();
     const headers = { Authorization: "Bearer " + token, Accept: "application/json;odata=nometadata" };
-    let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${fields.join(",")}&$top=500`;
+    const lookups = lookupOverride || this._lookupFields || [];
+    const selectParts = fields.map(f => lookups.includes(f) ? f + '/Title' : f);
+    const expandParts = fields.filter(f => lookups.includes(f));
+    let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${selectParts.join(",")}&$top=500`;
+    if (expandParts.length) url += `&$expand=${expandParts.join(",")}`;
     let allItems = [];
     while (url) {
       const resp = await fetch(url, { headers });
@@ -398,7 +404,11 @@ const DataService = {
       allItems = allItems.concat(data.value || []);
       url = data['odata.nextLink'] || null;
     }
-    return allItems;
+    return allItems.map(item => {
+      const flat = {...item};
+      lookups.forEach(f => { if (flat[f] && typeof flat[f] === 'object') flat[f] = flat[f].Title || ''; });
+      return flat;
+    });
   },
 
   async load() {
@@ -428,7 +438,11 @@ const ClosedDataService = {
   async _fetchList(listTitle, fields) {
     const token = await this._getToken();
     const headers = { Authorization: "Bearer " + token, Accept: "application/json;odata=nometadata" };
-    let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${fields.join(",")}&$top=500`;
+    const lookups = DataService._lookupFields || [];
+    const selectParts = fields.map(f => lookups.includes(f) ? f + '/Title' : f);
+    const expandParts = fields.filter(f => lookups.includes(f));
+    let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${selectParts.join(",")}&$top=500`;
+    if (expandParts.length) url += `&$expand=${expandParts.join(",")}`;
     let allItems = [];
     while (url) {
       const resp = await fetch(url, { headers });
@@ -440,7 +454,11 @@ const ClosedDataService = {
       allItems = allItems.concat(data.value || []);
       url = data['odata.nextLink'] || null;
     }
-    return allItems;
+    return allItems.map(item => {
+      const flat = {...item};
+      lookups.forEach(f => { if (flat[f] && typeof flat[f] === 'object') flat[f] = flat[f].Title || ''; });
+      return flat;
+    });
   },
 
   async load() {
