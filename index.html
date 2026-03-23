@@ -384,13 +384,57 @@ const DataService = {
   },
 
   _lookupFields: ["Assigned_PM", "Sales_Rep"],
+  _fieldCache: {},
+
+  async _discoverFields(listTitle, token) {
+    if (this._fieldCache[listTitle]) return this._fieldCache[listTitle];
+    const headers = { Authorization: "Bearer " + token, Accept: "application/json;odata=nometadata" };
+    const url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/fields?$select=InternalName,Title,TypeAsString&$filter=Hidden eq false&$top=500`;
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) { console.warn("Could not discover fields for " + listTitle); return null; }
+    const data = await resp.json();
+    const fieldMap = {};
+    (data.value || []).forEach(f => {
+      fieldMap[f.InternalName] = f;
+      fieldMap[f.Title] = f;
+    });
+    this._fieldCache[listTitle] = fieldMap;
+    console.log("Discovered fields for " + listTitle + ":", Object.keys(fieldMap).filter(k => !k.includes("_x0")).sort().join(", "));
+    return fieldMap;
+  },
+
+  _resolveFieldName(fieldName, fieldMap) {
+    if (!fieldMap) return fieldName;
+    if (fieldMap[fieldName]) return fieldMap[fieldName].InternalName;
+    const noUnderscore = fieldName.replace(/_/g, ' ');
+    if (fieldMap[noUnderscore]) return fieldMap[noUnderscore].InternalName;
+    const spEncoded = fieldName.replace(/_/g, '_x0020_');
+    if (fieldMap[spEncoded]) return fieldMap[spEncoded].InternalName;
+    console.warn("Field not found in list: " + fieldName + " (skipping)");
+    return null;
+  },
 
   async _fetchList(listTitle, fields, lookupOverride) {
     const token = await this._getToken();
     const headers = { Authorization: "Bearer " + token, Accept: "application/json;odata=nometadata" };
+    const fieldMap = await this._discoverFields(listTitle, token);
     const lookups = lookupOverride || this._lookupFields || [];
-    const selectParts = fields.map(f => lookups.includes(f) ? f + '/Title' : f);
-    const expandParts = fields.filter(f => lookups.includes(f));
+    const resolvedFields = [];
+    const fieldMapping = {};
+    fields.forEach(f => {
+      const resolved = this._resolveFieldName(f, fieldMap);
+      if (resolved) {
+        resolvedFields.push(resolved);
+        fieldMapping[resolved] = f;
+      }
+    });
+    const isLookup = (resolved) => {
+      if (!fieldMap || !fieldMap[resolved]) return false;
+      const t = fieldMap[resolved].TypeAsString;
+      return t === 'User' || t === 'Lookup' || t === 'UserMulti' || t === 'LookupMulti';
+    };
+    const selectParts = resolvedFields.map(f => isLookup(f) ? f + '/Title' : f);
+    const expandParts = resolvedFields.filter(f => isLookup(f));
     let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${selectParts.join(",")}&$top=500`;
     if (expandParts.length) url += `&$expand=${expandParts.join(",")}`;
     let allItems = [];
@@ -405,8 +449,13 @@ const DataService = {
       url = data['odata.nextLink'] || null;
     }
     return allItems.map(item => {
-      const flat = {...item};
-      lookups.forEach(f => { if (flat[f] && typeof flat[f] === 'object') flat[f] = flat[f].Title || ''; });
+      const flat = {};
+      resolvedFields.forEach(resolved => {
+        const originalName = fieldMapping[resolved];
+        let val = item[resolved];
+        if (val && typeof val === 'object' && val.Title !== undefined) val = val.Title || '';
+        flat[originalName] = val;
+      });
       return flat;
     });
   },
@@ -436,29 +485,10 @@ const ClosedDataService = {
   },
 
   async _fetchList(listTitle, fields) {
-    const token = await this._getToken();
-    const headers = { Authorization: "Bearer " + token, Accept: "application/json;odata=nometadata" };
-    const lookups = DataService._lookupFields || [];
-    const selectParts = fields.map(f => lookups.includes(f) ? f + '/Title' : f);
-    const expandParts = fields.filter(f => lookups.includes(f));
-    let url = `${SP_BASE}/_api/web/lists/getbytitle('${listTitle}')/items?$select=${selectParts.join(",")}&$top=500`;
-    if (expandParts.length) url += `&$expand=${expandParts.join(",")}`;
-    let allItems = [];
-    while (url) {
-      const resp = await fetch(url, { headers });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(`SharePoint ${resp.status}: ${err?.['odata.error']?.message?.value || resp.statusText}`);
-      }
-      const data = await resp.json();
-      allItems = allItems.concat(data.value || []);
-      url = data['odata.nextLink'] || null;
-    }
-    return allItems.map(item => {
-      const flat = {...item};
-      lookups.forEach(f => { if (flat[f] && typeof flat[f] === 'object') flat[f] = flat[f].Title || ''; });
-      return flat;
-    });
+    return await DataService._fetchList.call({
+      ...DataService,
+      _getToken: () => DataService._getToken()
+    }, listTitle, fields);
   },
 
   async load() {
