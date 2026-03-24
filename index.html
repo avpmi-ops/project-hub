@@ -437,7 +437,7 @@ function renderKPIs(projects) {
   const activeCount = projects.length;
   const totalValue = projects.reduce((s, p) => s + (parseFloat(p.Contract_Value) || 0), 0);
   const avgValue = activeCount > 0 ? totalValue / activeCount : 0;
-  const avgDays = Math.random() * 60 + 30;
+  const goLiveCount = projects.filter(p => p.Stage === 'Go Live').length;
 
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi-card success">
@@ -453,9 +453,9 @@ function renderKPIs(projects) {
       <div class="value">$${(avgValue / 1000).toFixed(0)}K</div>
     </div>
     <div class="kpi-card warn">
-      <div class="label">Avg Days in Stage</div>
-      <div class="value">${Math.round(avgDays)}</div>
-      <div class="sub">days</div>
+      <div class="label">In Go Live</div>
+      <div class="value">${goLiveCount}</div>
+      <div class="sub">active projects</div>
     </div>
   `;
 }
